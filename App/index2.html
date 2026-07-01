@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Health Agent — Test Systems</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg2: #f8fafc; --bg3: #f1f5f9;
+      --txt: #0f172a; --txt2: #64748b;
+      --border: #e2e8f0; --border2: #f1f5f9;
+      --blue: #1B4FD8; --blue-lt: #EFF6FF;
+      --green: #22C55E; --amber: #F59E0B; --red: #EF4444;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --mono: 'SF Mono', 'Fira Code', monospace;
+    }
+    body { font-family: var(--font); background: var(--bg3); color: var(--txt); height: 100vh; overflow: hidden; }
+
+    /* ── Setup screen ─────────────────────────────────────────────────── */
+    #setup-screen {
+      position: fixed; inset: 0; background: var(--bg3);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999; padding: 24px;
+    }
+    .setup-card {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px; width: 100%; max-width: 460px; box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+    .setup-logo { width: 40px; height: 40px; background: var(--blue); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+    .setup-logo svg { width: 20px; height: 20px; }
+    .setup-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .setup-sub { font-size: 13px; color: var(--txt2); line-height: 1.6; margin-bottom: 24px; }
+    .setup-field label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px; }
+    .setup-field input {
+      width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--border);
+      background: var(--bg2); color: var(--txt); font-size: 13px; font-family: var(--mono);
+      outline: none; transition: border-color 0.15s; margin-bottom: 6px;
+    }
+    .setup-field input:focus { border-color: var(--blue); }
+    .setup-hint { font-size: 11px; color: var(--txt2); line-height: 1.55; margin-bottom: 20px; }
+    .setup-hint a { color: var(--blue); text-decoration: none; }
+    .setup-hint a:hover { text-decoration: underline; }
+    .setup-btn {
+      width: 100%; padding: 11px; border-radius: 9px; background: var(--blue); color: white;
+      border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+    }
+    .setup-btn:hover { opacity: 0.88; }
+    .setup-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .setup-error { font-size: 12px; color: var(--red); margin-top: 10px; display: none; }
+    .setup-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .setup-note { font-size: 11px; color: var(--txt2); line-height: 1.6; background: var(--bg2); border-radius: 8px; padding: 10px 12px; }
+
+    /* ── Main app ─────────────────────────────────────────────────────── */
+    #app { display: none; grid-template-columns: 1fr 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+    #app.visible { display: grid; }
+
+    .header { grid-column: 1/-1; background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; gap: 12px; }
+    .logo { width: 30px; height: 30px; background: var(--blue); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo svg { width: 16px; height: 16px; }
+    .title { font-size: 14px; font-weight: 600; }
+    .subtitle { font-size: 11px; color: var(--txt2); margin-top: 1px; }
+    .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .pill { font-size: 11px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border); color: var(--txt2); display: flex; align-items: center; gap: 5px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #94A3B8; }
+    .dot.live { background: var(--green); animation: pulse 2s infinite; }
+    .dot.mock { background: var(--amber); }
+    .hdr-btn { font-size: 12px; padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg2); color: var(--txt); cursor: pointer; font-weight: 500; transition: background 0.15s; }
+    .hdr-btn:hover { background: var(--bg3); }
+    .key-btn { font-size: 12px; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg2); color: var(--txt2); cursor: pointer; transition: background 0.15s; }
+    .key-btn:hover { background: var(--bg3); color: var(--txt); }
+
+    .chat-panel { display: flex; flex-direction: column; background: var(--bg); border-right: 1px solid var(--border); overflow: hidden; }
+    .panel-top { padding: 10px 16px 9px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .panel-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--txt2); }
+    .data-badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--bg2); border: 1px solid var(--border); color: var(--txt2); }
+    .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 86%; }
+    .msg.user { align-self: flex-end; }
+    .msg.agent { align-self: flex-start; }
+    .msg-label { font-size: 11px; color: var(--txt2); margin-bottom: 4px; padding: 0 2px; }
+    .msg.user .msg-label { text-align: right; }
+    .bubble { padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.55; }
+    .msg.user .bubble { background: var(--blue); color: #fff; border-bottom-right-radius: 3px; }
+    .msg.agent .bubble { background: var(--bg2); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+    .input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 11px; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--bg2); color: var(--txt2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .chip:hover { background: var(--bg3); color: var(--txt); border-color: #cbd5e1; }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    textarea.chat-input { flex: 1; resize: none; border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13px; font-family: var(--font); background: var(--bg2); color: var(--txt); outline: none; min-height: 38px; max-height: 100px; transition: border-color 0.15s; }
+    textarea.chat-input:focus { border-color: var(--blue); }
+    .send-btn { width: 36px; height: 36px; border-radius: 8px; background: var(--blue); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s; }
+    .send-btn:hover { opacity: 0.85; }
+    .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .send-btn svg { width: 15px; height: 15px; }
+
+    .results-panel { display: flex; flex-direction: column; overflow: hidden; background: var(--bg2); }
+    .results-scroll { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .account-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .account-card.high  { border-left: 3px solid var(--red); }
+    .account-card.medium { border-left: 3px solid var(--amber); }
+    .account-card.low   { border-left: 3px solid var(--green); }
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .acct-name { font-size: 13px; font-weight: 600; }
+    .acct-meta { font-size: 11px; color: var(--txt2); margin-top: 2px; }
+    .risk-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 99px; flex-shrink: 0; }
+    .risk-badge.high   { background: #FEF2F2; color: #DC2626; }
+    .risk-badge.medium { background: #FFFBEB; color: #D97706; }
+    .risk-badge.low    { background: #F0FDF4; color: #16A34A; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .stat { background: var(--bg2); border-radius: 6px; padding: 6px 8px; }
+    .stat-lbl { font-size: 10px; color: var(--txt2); }
+    .stat-val { font-size: 12px; font-weight: 600; margin-top: 2px; }
+    .products-row { background: var(--bg2); border-radius: 6px; padding: 6px 8px; }
+    .action-row { font-size: 11px; color: var(--blue); background: var(--blue-lt); border-radius: 6px; padding: 7px 9px; line-height: 1.5; }
+
+    .thinking-block { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .thinking-head { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--txt2); text-transform: uppercase; letter-spacing: 0.05em; }
+    .thinking-body { padding: 10px 12px; font-size: 12px; line-height: 1.65; color: var(--txt2); white-space: pre-wrap; }
+    .summary-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: var(--txt2); }
+    .summary-card b { color: var(--txt); }
+    .section-heading { font-size: 11px; font-weight: 600; color: var(--txt2); text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 0; }
+    .error-card { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #DC2626; line-height: 1.6; }
+    .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px 24px; text-align: center; }
+    .empty-icon { font-size: 36px; opacity: 0.35; }
+    .empty-title { font-size: 14px; font-weight: 600; color: var(--txt2); }
+    .empty-sub { font-size: 12px; color: var(--txt2); opacity: 0.7; max-width: 220px; line-height: 1.55; }
+
+    /* ── Databricks drawer ────────────────────────────────────────────── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: flex-end; }
+    .overlay.open { display: flex; }
+    .drawer { background: var(--bg); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; padding: 24px 24px 32px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .drawer-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .drawer-sub { font-size: 13px; color: var(--txt2); line-height: 1.55; margin-bottom: 20px; }
+    .conn-status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; }
+    .conn-status.ok  { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
+    .conn-status.off { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+    .field { margin-bottom: 14px; }
+    .field label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 5px; }
+    .field input { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg2); color: var(--txt); font-size: 13px; font-family: var(--mono); outline: none; transition: border-color 0.15s; }
+    .field input:focus { border-color: var(--blue); }
+    .field-hint { font-size: 11px; color: var(--txt2); margin-top: 4px; line-height: 1.5; }
+    .sql-label { font-size: 11px; font-weight: 600; color: var(--txt2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sql-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: var(--mono); font-size: 11px; color: var(--txt2); line-height: 1.65; }
+    .drawer-actions { display: flex; gap: 8px; margin-top: 20px; }
+    .btn-blue  { flex: 1; padding: 10px; border-radius: 8px; background: var(--blue); color: white; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    .btn-blue:hover { opacity: 0.88; }
+    .btn-blue:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-amber { padding: 10px 14px; border-radius: 8px; background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .btn-ghost { padding: 10px 14px; border-radius: 8px; background: transparent; color: var(--txt2); border: 1px solid var(--border); font-size: 13px; cursor: pointer; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    @keyframes spin  { to { transform: rotate(360deg); } }
+    @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+    .spinner { width: 12px; height: 12px; border: 1.5px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    .typing-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--txt2); animation: blink 1.2s infinite; }
+    .typing-dot:nth-child(2){animation-delay:.2s} .typing-dot:nth-child(3){animation-delay:.4s}
+    .typing-dots { display: flex; gap: 4px; padding: 4px 0; align-items: center; }
+
+    @media (max-width: 640px) {
+      body { overflow: auto; }
+      #app.visible { grid-template-columns: 1fr; grid-template-rows: 56px auto 1fr; height: auto; min-height: 100vh; }
+      .chat-panel { min-height: 380px; border-right: none; border-bottom: 1px solid var(--border); }
+      .results-panel { min-height: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Setup screen ─────────────────────────────────────────────────────── -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <svg viewBox="0 0 20 20" fill="none">
+        <rect x="1" y="1" width="7" height="7" rx="2" fill="white" opacity="0.9"/>
+        <rect x="12" y="1" width="7" height="7" rx="2" fill="white" opacity="0.6"/>
+        <rect x="1" y="12" width="7" height="7" rx="2" fill="white" opacity="0.6"/>
+        <rect x="12" y="12" width="7" height="7" rx="2" fill="white" opacity="0.9"/>
+      </svg>
+    </div>
+    <div class="setup-title">Account Health Agent</div>
+    <div class="setup-sub">AI-powered churn risk analysis and renewal alerts for your Test Systems territory. Enter your Claude API key to get started.</div>
+
+    <div class="setup-field">
+      <label>Claude API Key</label>
+      <input type="password" id="key-input" placeholder="sk-ant-api03-…" onkeydown="if(event.key==='Enter')startApp()" />
+    </div>
+    <div class="setup-hint">
+      Get a free API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key.<br>
+      Your key is stored only in this browser session and never sent anywhere except the Claude API.
+    </div>
+
+    <button class="setup-btn" id="start-btn" onclick="startApp()">Launch app →</button>
+    <div class="setup-error" id="setup-error"></div>
+
+    <hr class="setup-divider" />
+    <div class="setup-note">
+      🔒 <strong>Privacy:</strong> Your API key lives only in browser memory and clears when you close the tab. It is never stored, logged, or committed to this repository. Databricks credentials (if used) follow the same pattern.
+    </div>
+  </div>
+</div>
+
+<!-- ── Databricks drawer ─────────────────────────────────────────────────── -->
+<div class="overlay" id="overlay" onclick="maybeClose(event)">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-title">Connect to Databricks</div>
+    <div class="drawer-sub">Load your live account data from Databricks Delta Tables. Credentials stay in browser memory only.</div>
+    <div class="conn-status off" id="conn-status">⚡ Not connected — using 24 mock accounts</div>
+    <div class="field">
+      <label>Workspace URL</label>
+      <input type="text" id="db-host" placeholder="https://your-workspace.cloud.databricks.com" />
+      <div class="field-hint">Your Databricks workspace address bar URL</div>
+    </div>
+    <div class="field">
+      <label>Personal Access Token</label>
+      <input type="password" id="db-token" placeholder="dapi…" />
+      <div class="field-hint">Workspace → Settings → Developer → Access tokens → Generate new token</div>
+    </div>
+    <div class="field">
+      <label>SQL Warehouse HTTP Path</label>
+      <input type="text" id="db-path" placeholder="/sql/1.0/warehouses/abc123xyz" />
+      <div class="field-hint">Databricks SQL → SQL Warehouses → your warehouse → Connection details → HTTP path</div>
+    </div>
+    <div class="field">
+      <label>Catalog.Schema <span style="font-weight:400;color:var(--txt2)">(optional)</span></label>
+      <input type="text" id="db-catalog" placeholder="test_systems  or  main.test_systems" />
+      <div class="field-hint">Leave blank for default. Must match the schema created in setup_tables.py.</div>
+    </div>
+    <div class="sql-label">Query that will run</div>
+    <div class="sql-box">SELECT account_id AS id, account_name AS name, industry,
+       employees, mrr, region, products,
+       renewal_days AS renewalDays,
+       days_since_contact AS daysSinceContact,
+       contract_months AS contractMonths
+FROM accounts LIMIT 200</div>
+    <div class="drawer-actions">
+      <button class="btn-blue" id="connect-btn" onclick="connectDB()">Connect &amp; load data</button>
+      <button class="btn-amber" onclick="useMock()">Use mock data</button>
+      <button class="btn-ghost" onclick="closeDrawer()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main app ──────────────────────────────────────────────────────────── -->
+<div id="app">
+  <header class="header">
+    <div class="logo">
+      <svg viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="1" width="6" height="6" rx="1.5" fill="white" opacity="0.9"/>
+        <rect x="9" y="1" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
+        <rect x="1" y="9" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
+        <rect x="9" y="9" width="6" height="6" rx="1.5" fill="white" opacity="0.9"/>
+      </svg>
+    </div>
+    <div>
+      <div class="title">Account Health Agent</div>
+      <div class="subtitle">Test Systems · Powered by Claude AI</div>
+    </div>
+    <div class="hdr-right">
+      <div class="pill"><div class="dot mock" id="status-dot"></div><span id="status-text">Mock data</span></div>
+      <button class="hdr-btn" onclick="openDrawer()">⚡ Connect Databricks</button>
+      <button class="key-btn" onclick="resetKey()" title="Change API key">🔑</button>
+    </div>
+  </header>
+
+  <section class="chat-panel">
+    <div class="panel-top">
+      <span class="panel-label">Ask the agent</span>
+      <span class="data-badge" id="data-badge">24 mock accounts</span>
+    </div>
+    <div class="messages" id="messages">
+      <div class="msg agent">
+        <div class="msg-label">Agent</div>
+        <div class="bubble">Hi Nick — 24 mock accounts are loaded. Click "Connect Databricks" to load live data, or ask me a question to get started with the demo data.</div>
+      </div>
+    </div>
+    <div class="input-area">
+      <div class="chips" id="chips">
+        <button class="chip" onclick="useChip(this)">Which accounts are at churn risk?</button>
+        <button class="chip" onclick="useChip(this)">Who hasn't been contacted in 60+ days?</button>
+        <button class="chip" onclick="useChip(this)">Show renewals due in 90 days</button>
+        <button class="chip" onclick="useChip(this)">What's my total revenue at risk?</button>
+        <button class="chip" onclick="useChip(this)">Which single-product accounts should I upsell?</button>
+      </div>
+      <div class="input-row">
+        <textarea class="chat-input" id="chat-input" rows="1"
+          placeholder="Ask about your accounts…"
+          onkeydown="onKey(event)" oninput="resize(this)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="send()">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M2 8h12M8 2l6 6-6 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="results-panel">
+    <div class="panel-top">
+      <span class="panel-label">Agent results</span>
+    </div>
+    <div class="results-scroll" id="results">
+      <div class="empty-state">
+        <div class="empty-icon">🤖</div>
+        <div class="empty-title">Claude is ready</div>
+        <div class="empty-sub">Ask a question to analyze your accounts, or connect Databricks to load live data first.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let CLAUDE_KEY = '';
+let accounts   = [];
+let liveData   = false;
+let loading    = false;
+let dbCfg      = {};
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+const MOCK = [
+  {id:'A001',name:'Tulsa Law Group',industry:'Legal',employees:45,mrr:1200,region:'OK-Tulsa',products:['DocuWare'],renewalDays:18,daysSinceContact:72,contractMonths:24},
+  {id:'A002',name:'MidWest Medical Center',industry:'Healthcare',employees:120,mrr:3400,region:'OK-OKC',products:['DocuWare','PaperCut','CoreFax'],renewalDays:210,daysSinceContact:12,contractMonths:36},
+  {id:'A003',name:'Broken Arrow CPA Group',industry:'Finance',employees:28,mrr:800,region:'OK-Tulsa',products:['DocuWare'],renewalDays:45,daysSinceContact:91,contractMonths:12},
+  {id:'A004',name:'Cherokee Nation Businesses',industry:'Government',employees:340,mrr:5200,region:'OK-Tulsa',products:['DocuWare','PaperCut'],renewalDays:88,daysSinceContact:8,contractMonths:36},
+  {id:'A005',name:'OKC Family Dentistry',industry:'Healthcare',employees:15,mrr:420,region:'OK-OKC',products:['PaperCut'],renewalDays:22,daysSinceContact:65,contractMonths:12},
+  {id:'A006',name:'Sooner State Logistics',industry:'Transportation',employees:200,mrr:2800,region:'OK-OKC',products:['DocuWare','CoreFax'],renewalDays:112,daysSinceContact:44,contractMonths:24},
+  {id:'A007',name:'Edmond Public Schools',industry:'Education',employees:1200,mrr:4100,region:'OK-OKC',products:['DocuWare','PaperCut'],renewalDays:290,daysSinceContact:6,contractMonths:36},
+  {id:'A008',name:'Red Rock Realty',industry:'Real Estate',employees:32,mrr:650,region:'OK-Tulsa',products:['DocuWare'],renewalDays:14,daysSinceContact:83,contractMonths:12},
+  {id:'A009',name:'Sapulpa Manufacturing',industry:'Manufacturing',employees:88,mrr:1900,region:'OK-Tulsa',products:['PaperCut','CoreFax'],renewalDays:67,daysSinceContact:31,contractMonths:24},
+  {id:'A010',name:'Stillwater Insurance Co',industry:'Insurance',employees:55,mrr:1450,region:'OK-OKC',products:['DocuWare'],renewalDays:9,daysSinceContact:77,contractMonths:12},
+  {id:'A011',name:'Claremore Auto Group',industry:'Automotive',employees:42,mrr:730,region:'OK-Tulsa',products:['PaperCut'],renewalDays:155,daysSinceContact:102,contractMonths:24},
+  {id:'A012',name:'OSU Medical Center',industry:'Healthcare',employees:680,mrr:6800,region:'OK-OKC',products:['DocuWare','PaperCut','CoreFax'],renewalDays:178,daysSinceContact:9,contractMonths:36},
+  {id:'A013',name:'Tahlequah City Bank',industry:'Finance',employees:65,mrr:1100,region:'OK-Tulsa',products:['DocuWare','CoreFax'],renewalDays:41,daysSinceContact:58,contractMonths:12},
+  {id:'A014',name:'Green Country HVAC',industry:'Construction',employees:22,mrr:380,region:'OK-Tulsa',products:['PaperCut'],renewalDays:8,daysSinceContact:95,contractMonths:12},
+  {id:'A015',name:'Muskogee Title Co',industry:'Legal',employees:18,mrr:490,region:'OK-Tulsa',products:['DocuWare'],renewalDays:201,daysSinceContact:28,contractMonths:24},
+  {id:'A016',name:'Norman Regional Hospital',industry:'Healthcare',employees:520,mrr:5900,region:'OK-OKC',products:['DocuWare','PaperCut'],renewalDays:77,daysSinceContact:15,contractMonths:36},
+  {id:'A017',name:'Bartlesville Energy Co',industry:'Energy',employees:110,mrr:2200,region:'OK-Tulsa',products:['DocuWare','PaperCut','CoreFax'],renewalDays:33,daysSinceContact:48,contractMonths:24},
+  {id:'A018',name:'Yukon Pediatrics',industry:'Healthcare',employees:12,mrr:310,region:'OK-OKC',products:['PaperCut'],renewalDays:19,daysSinceContact:88,contractMonths:12},
+  {id:'A019',name:'Pryor Creek Farm Bureau',industry:'Agriculture',employees:34,mrr:560,region:'OK-Tulsa',products:['DocuWare'],renewalDays:142,daysSinceContact:37,contractMonths:24},
+  {id:'A020',name:'Lawton City Schools',industry:'Education',employees:890,mrr:3700,region:'OK-OKC',products:['DocuWare','PaperCut'],renewalDays:255,daysSinceContact:21,contractMonths:36},
+  {id:'A021',name:'Sand Springs Printing',industry:'Manufacturing',employees:8,mrr:220,region:'OK-Tulsa',products:['PaperCut'],renewalDays:11,daysSinceContact:110,contractMonths:12},
+  {id:'A022',name:'Owasso Family Medicine',industry:'Healthcare',employees:24,mrr:540,region:'OK-Tulsa',products:['DocuWare'],renewalDays:56,daysSinceContact:43,contractMonths:12},
+  {id:'A023',name:'Enid Oil Services',industry:'Energy',employees:75,mrr:1650,region:'OK-OKC',products:['DocuWare','CoreFax'],renewalDays:95,daysSinceContact:19,contractMonths:24},
+  {id:'A024',name:'Durant Motor Sports',industry:'Automotive',employees:19,mrr:290,region:'OK-Tulsa',products:['PaperCut'],renewalDays:25,daysSinceContact:74,contractMonths:12},
+];
+
+// ─── SETUP SCREEN ─────────────────────────────────────────────────────────────
+async function startApp() {
+  const key = document.getElementById('key-input').value.trim();
+  const err = document.getElementById('setup-error');
+  const btn = document.getElementById('start-btn');
+  if (!key || !key.startsWith('sk-ant')) {
+    err.textContent = 'Please enter a valid Claude API key (starts with sk-ant…)';
+    err.style.display = 'block'; return;
+  }
+  err.style.display = 'none';
+  btn.textContent = 'Verifying key…'; btn.disabled = true;
+
+  // Quick validation call
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 10,
+        messages: [{ role: 'user', content: 'hi' }]
+      })
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(()=>({}));
+      throw new Error(e.error?.message || `API error ${r.status}`);
+    }
+    CLAUDE_KEY = key;
+    accounts = MOCK;
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+  } catch(e) {
+    err.textContent = 'Key check failed: ' + e.message;
+    err.style.display = 'block';
+    btn.textContent = 'Launch app →'; btn.disabled = false;
+  }
+}
+
+function resetKey() {
+  if (!confirm('Clear your API key and return to the setup screen?')) return;
+  CLAUDE_KEY = '';
+  document.getElementById('key-input').value = '';
+  document.getElementById('setup-error').style.display = 'none';
+  document.getElementById('start-btn').textContent = 'Launch app →';
+  document.getElementById('start-btn').disabled = false;
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+// ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
+const SYSTEM = `You are an Account Health Agent for Test Systems, an Oklahoma-based managed print, document management, and IT services company. You help Nick, an account manager, analyze his territory.
+
+Products: DocuWare (document management SaaS), PaperCut (print management SaaS), CoreFax (digital fax SaaS).
+
+CHURN RISK SCORING:
+- Renewal ≤ 30 days: +40 | 31–90 days: +20
+- No contact ≥ 90 days: +35 | 60–89 days: +20 | 45–59 days: +10
+- Only 1 product: +15 | 12-month contract: +10
+- Score ≥ 55: HIGH | 30–54: MEDIUM | < 30: LOW
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{
+  "thinking": "Step-by-step reasoning. 3–5 sentences, specific about the data.",
+  "summary": "2–3 sentence plain-English findings. Use **bold** around key numbers/names.",
+  "heading": "Short result heading e.g. '7 accounts at high risk'",
+  "accounts": [{
+    "id":"","name":"","industry":"","mrr":0,
+    "renewalDays":0,"daysSinceContact":0,"products":[],
+    "riskScore":0,"riskLevel":"high|medium|low",
+    "action":"Specific 1–2 sentence recommended next action."
+  }]
+}
+Max 8 accounts, most urgent first.`;
+
+// ─── CLAUDE API ───────────────────────────────────────────────────────────────
+async function askClaude(q) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6', max_tokens: 1000, system: SYSTEM,
+      messages: [{ role: 'user', content: `Account data (${accounts.length} accounts, ${liveData?'LIVE Databricks':'mock'}):\n\n${JSON.stringify(accounts,null,2)}\n\nQuestion: ${q}` }]
+    })
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error?.message||`Claude API ${r.status}`); }
+  const d = await r.json();
+  return JSON.parse(d.content[0].text.replace(/```json|```/g,'').trim());
+}
+
+// ─── DATABRICKS ───────────────────────────────────────────────────────────────
+async function fetchDB(host, token, path, catalog) {
+  const prefix = catalog ? catalog.trim().replace(/\.$/,'') + '.' : '';
+  const sql = `SELECT account_id AS id, account_name AS name, industry, employees, mrr, region, products, renewal_days AS renewalDays, days_since_contact AS daysSinceContact, contract_months AS contractMonths FROM ${prefix}accounts LIMIT 200`;
+  const wid = path.split('/').pop();
+  const url = `${host.replace(/\/$/,'')}/api/2.0/sql/statements`;
+  const res = await fetch(url, {
+    method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+    body: JSON.stringify({ statement: sql, warehouse_id: wid, wait_timeout:'30s', on_wait_timeout:'CONTINUE' })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message||`Databricks ${res.status}`); }
+  let stmt = await res.json(); let tries = 0;
+  while (['RUNNING','PENDING'].includes(stmt.status?.state)) {
+    if (tries++ > 20) throw new Error('Query timed out.');
+    await new Promise(r=>setTimeout(r,1500));
+    stmt = await (await fetch(`${url}/${stmt.statement_id}`,{headers:{'Authorization':`Bearer ${token}`}})).json();
+  }
+  if (stmt.status?.state !== 'SUCCEEDED') throw new Error(stmt.status?.error?.message||'Query failed.');
+  const cols = stmt.manifest?.schema?.columns?.map(c=>c.name)||[];
+  const rows = stmt.result?.data_array||[];
+  if (!rows.length) throw new Error('No rows returned — check your accounts table and schema name.');
+  return rows.map(row => {
+    const o={}; cols.forEach((c,i)=>o[c]=row[i]);
+    o.mrr=Number(o.mrr)||0; o.employees=Number(o.employees)||0;
+    o.renewalDays=Number(o.renewalDays)||0; o.daysSinceContact=Number(o.daysSinceContact)||0;
+    o.contractMonths=Number(o.contractMonths)||12;
+    if (typeof o.products==='string') { try{o.products=JSON.parse(o.products);}catch{o.products=o.products.split(',').map(s=>s.trim());} }
+    if (!Array.isArray(o.products)) o.products=[String(o.products)];
+    return o;
+  });
+}
+
+function openDrawer()  { document.getElementById('overlay').classList.add('open'); syncConn(); }
+function closeDrawer() { document.getElementById('overlay').classList.remove('open'); }
+function maybeClose(e) { if(e.target===document.getElementById('overlay'))closeDrawer(); }
+
+function syncConn() {
+  const el = document.getElementById('conn-status');
+  el.className = 'conn-status '+(liveData?'ok':'off');
+  el.textContent = liveData ? `✅ Connected — ${accounts.length} live accounts` : '⚡ Not connected — using 24 mock accounts';
+}
+
+async function connectDB() {
+  const host=document.getElementById('db-host').value.trim(), token=document.getElementById('db-token').value.trim(),
+        path=document.getElementById('db-path').value.trim(), catalog=document.getElementById('db-catalog').value.trim();
+  if (!host||!token||!path){alert('Fill in workspace URL, token, and HTTP path.');return;}
+  dbCfg={host,token,path,catalog};
+  const btn=document.getElementById('connect-btn'); btn.textContent='Connecting…'; btn.disabled=true;
+  try {
+    const rows=await fetchDB(host,token,path,catalog);
+    accounts=rows; liveData=true; syncConn(); updateHdr(); closeDrawer();
+    addMsg('agent','Connected to Databricks — '+rows.length+' live accounts loaded. Ask me anything about your real data.');
+  } catch(e){alert('Connection failed: '+e.message);}
+  finally{btn.textContent='Connect & load data';btn.disabled=false;}
+}
+
+function useMock() { accounts=MOCK; liveData=false; syncConn(); updateHdr(); closeDrawer(); }
+function updateHdr() {
+  document.getElementById('status-dot').className='dot '+(liveData?'live':'mock');
+  document.getElementById('status-text').textContent=liveData?'Live data':'Mock data';
+  document.getElementById('data-badge').textContent=accounts.length+(liveData?' live':' mock')+' accounts';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(p) {
+  let h='';
+  h+=`<div class="thinking-block"><div class="thinking-head"><span style="width:10px;height:10px;border:1.5px solid var(--border);border-radius:50%;display:inline-block"></span> Agent reasoning</div><div class="thinking-body">${x(p.thinking)}</div></div>`;
+  h+=`<div class="summary-card">${p.summary.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</div>`;
+  if (p.accounts?.length) {
+    h+=`<div class="section-heading">${x(p.heading)}</div>`;
+    p.accounts.forEach(a=>{
+      const lv=a.riskLevel||'low', badge=lv==='high'?'High risk':lv==='medium'?'Medium risk':'Low risk';
+      h+=`<div class="account-card ${lv}">
+        <div class="card-top"><div><div class="acct-name">${x(a.name)}</div><div class="acct-meta">${x(a.industry)} · Risk score: ${a.riskScore}</div></div><div class="risk-badge ${lv}">${badge}</div></div>
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-lbl">MRR</div><div class="stat-val">$${Number(a.mrr).toLocaleString()}</div></div>
+          <div class="stat"><div class="stat-lbl">Renewal</div><div class="stat-val">${a.renewalDays}d</div></div>
+          <div class="stat"><div class="stat-lbl">Last contact</div><div class="stat-val">${a.daysSinceContact}d ago</div></div>
+        </div>
+        <div class="products-row"><div class="stat-lbl">Products</div><div class="stat-val" style="font-size:11px">${x((a.products||[]).join(' · '))}</div></div>
+        <div class="action-row">💡 ${x(a.action)}</div>
+      </div>`;
+    });
+  }
+  document.getElementById('results').innerHTML=h;
+}
+function renderErr(msg){document.getElementById('results').innerHTML=`<div class="error-card"><b>Error</b><br>${x(msg)}</div>`;}
+function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ─── CHAT ─────────────────────────────────────────────────────────────────────
+function addMsg(role,content,typing){
+  const msgs=document.getElementById('messages'), d=document.createElement('div');
+  d.className='msg '+role;
+  if(typing){d.innerHTML=`<div class="msg-label">Agent</div><div class="bubble"><div class="typing-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>`;}
+  else{d.innerHTML=`<div class="msg-label">${role==='user'?'You':'Agent'}</div><div class="bubble">${content}</div>`;}
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+}
+
+async function send(){
+  if(loading)return;
+  const inp=document.getElementById('chat-input'), q=inp.value.trim(); if(!q)return;
+  loading=true; inp.value=''; inp.style.height='auto';
+  document.getElementById('send-btn').disabled=true;
+  document.getElementById('chips').style.display='none';
+  addMsg('user',x(q));
+  const typing=addMsg('agent','',true);
+  document.getElementById('results').innerHTML=`<div class="thinking-block"><div class="thinking-head"><div class="spinner"></div> Claude is analyzing ${accounts.length} accounts…</div></div>`;
+  try{
+    const p=await askClaude(q);
+    typing.querySelector('.bubble').textContent=p.summary.replace(/\*\*(.+?)\*\*/g,'$1');
+    render(p);
+  }catch(e){typing.querySelector('.bubble').textContent='Something went wrong — see results panel.';renderErr(e.message);}
+  loading=false; document.getElementById('send-btn').disabled=false; inp.focus();
+}
+
+function useChip(btn){document.getElementById('chat-input').value=btn.textContent;send();}
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
+function resize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+</script>
+</body>
+</html>

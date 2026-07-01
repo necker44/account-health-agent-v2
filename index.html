@@ -436,7 +436,7 @@ async function askClaude(q) {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6', max_tokens: 1000, system: SYSTEM,
+      model: 'claude-sonnet-4-6', max_tokens: 4000, system: SYSTEM,
       messages: [{ role: 'user', content: `Account data (${accounts.length} accounts, ${liveData?'LIVE Databricks':'mock'}):\n\n${JSON.stringify(accounts,null,2)}\n\nQuestion: ${q}` }]
     })
   });

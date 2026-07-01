@@ -14,8 +14,6 @@ Instead of manually pulling CRM reports, you type a question like:
 
 The agent analyzes your full account portfolio, applies a weighted churn risk scoring model, and returns a prioritized list of accounts with specific recommended actions — all in seconds.
 
-![Setup Screen](docs/setup-screen.png)
-
 ---
 
 ## Features
